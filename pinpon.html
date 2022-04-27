@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>Gamedev Canvas Workshop</title>
+    <link rel="stylesheet" href="main.css">
+    <style>
+        * { padding: 0; margin: 0; }
+        canvas { background: #eee; display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width="1000" height="600"></canvas>
+
+<script>
+
+    var Score = 0
+
+    //canvasへの参照を取得
+    var canvas = document.getElementById("myCanvas");
+    //Canvasを描写するために２Dを使う
+    var ctx = canvas.getContext("2d");
+    var x = canvas.width/2;
+    var y = canvas.height-10
+
+    ;
+    var dx = 1;
+    var dy = 1;
+
+
+
+    //描写される円の半径を持つ変数
+    var ballRadius = 10;
+
+
+    //ボールがぶつかる棒の設定
+    var paddleHeight = 10;
+    var paddleWidth = 75;
+    var paddleX = (canvas.width-paddleWidth)/2;
+
+    //右のボタン
+    var rightPressed = false;
+    //左のボタン
+    var leftPressed = false;
+
+    //壊すレンガ
+    var brickRowCount = 10;
+    var brickColumnCount = 11;
+    var brickWidth = 75;
+    var brickHeight = 20;
+    var brickPadding = 10;
+    var brickOffsetTop = 30;
+    var brickOffsetLeft = 30;
+
+    //レンガは２次元配列で保持する
+    var bricks = [];
+    for(var c=0; c<brickColumnCount; c++) {
+        bricks[c] = [];
+        for(var r=0; r<brickRowCount; r++) {
+            bricks[c][r] = { x: 0, y: 0, status: 1 };
+        }
+    }
+
+
+
+    //ボタンが押されているかどうかを検知するイベントリスナーの設定
+    document.addEventListener("keydown", keyDownHandler, false);
+    document.addEventListener("keyup", keyUpHandler, false);
+
+    //マウスで動かすためのイベントリスナーの設定
+    document.addEventListener("mousemove", mouseMoveHandler, false);
+
+
+    //キーを押している時はtrue
+    function keyDownHandler(e) {
+        if(e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = true;
+        }
+        else if(e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = true;
+        }
+    }
+
+    //押していない時はfalse
+    function keyUpHandler(e) {
+        if(e.key == "Right" || e.key == "ArrowRight") {
+            rightPressed = false;
+        }
+        else if(e.key == "Left" || e.key == "ArrowLeft") {
+            leftPressed = false;
+        }
+    }
+
+    //ボールの判定
+    //ボールのx位置は、レンガのx位置よりも大きくなっています。
+    //ボールのx位置は、レンガのx位置にその幅を加えたものよりも小さくなっています。
+    //ボールのy位置は、レンガのy位置よりも大きくなっています。
+    //ボールのy位置は、レンガのy位置にその高さを加えたものよりも小さくなっています。
+
+    //こわしがボールにあたっときに消す処理
+    function collisionDetection() {
+
+        for(var c=0; c<brickColumnCount; c++) {
+            for(var r=0; r<brickRowCount; r++) {
+                var b = bricks[c][r];
+                if(b.status == 1) {
+                    if(x > b.x && x < b.x+brickWidth && y > b.y && y < b.y+brickHeight) {
+                        Score += 10
+                        document.getElementById("score").value = Score;
+                        dy = -dy;
+                        b.status = 0;
+                        dx += 0.5
+                        dy += 0.5
+                    }
+                }
+            }
+
+        }
+    }
+    //マウスで動かすためのイベントリスナー
+    function mouseMoveHandler(e) {
+        var relativeX = e.clientX - canvas.offsetLeft;
+        if(relativeX > 0 && relativeX < canvas.width) {
+            paddleX = relativeX - paddleWidth/2;
+        }
+    }
+
+
+
+
+
+
+    //レンガ描写ロジック
+    function drawBricks() {
+        for(var c=0; c<brickColumnCount; c++) {
+            for(var r=0; r<brickRowCount; r++) {
+                if(bricks[c][r].status == 1) {
+                    var brickX = (c*(brickWidth+brickPadding))+brickOffsetLeft;
+                    var brickY = (r*(brickHeight+brickPadding))+brickOffsetTop;
+                    bricks[c][r].x = brickX;
+                    bricks[c][r].y = brickY;
+                    ctx.beginPath();
+                    ctx.rect(brickX, brickY, brickWidth, brickHeight);
+                    ctx.fillStyle = "#000000";
+                    ctx.fill();
+                    ctx.closePath();
+                }
+            }
+        }
+    }
+
+
+    //ボール
+    function drawBall() {
+        ctx.beginPath();
+        ctx.arc(x, y, ballRadius, 0, Math.PI*2);
+        ctx.fillStyle = "#000000";
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    //棒
+    function drawPaddle() {
+        ctx.beginPath();
+        ctx.rect(paddleX, canvas.height-paddleHeight, paddleWidth, paddleHeight);
+        ctx.fillStyle = "#000000";
+        ctx.fill();
+        ctx.closePath();
+    }
+
+    function draw() {
+        //前の描写をけす
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        //壊すブロックの呼び出し
+        drawBricks();
+
+        drawBall();
+        drawPaddle();
+        collisionDetection();
+
+
+        //ボールが壁にあたった時に、方向を変える
+        //ボールの中心ではなく、ボールが中心と辺の距離がボールの半径と等しくなったときに動く向きを変える
+
+        //左右にぶつかった時
+        if(x + dx > canvas.width-ballRadius || x + dx < ballRadius) {
+            dx = -dx;
+        }
+        //上下にぶつかった時　
+        //下はゲームオーバーにする＞
+        if(y + dy < ballRadius) {
+            dy = -dy;
+            //ボールの中心が棒の左端と右端の間にあったらOKにする
+        } else if(y + dy > canvas.height-ballRadius) {
+            if (x > paddleX && x < paddleX + paddleWidth) {
+                dy = -dy;
+            }
+            //それ以外はOUT
+            else {
+                alert("GAME OVER");
+                document.location.reload();
+                clearInterval(interval);
+            }
+        }
+
+
+        //棒を７ｐｘずつ動かす。壁以上のときは何もしない。
+        if(rightPressed && paddleX < canvas.width-paddleWidth) {
+            paddleX += 7;
+        }
+        else if(leftPressed && paddleX > 0) {
+            paddleX -= 7;
+        }
+        x += dx;
+        y += dy;
+    }
+
+
+    //繰り返すもの　ここでは１０ミリ秒おき
+    var interval = setInterval(draw, 10);
+
+</script>
+<div id="taiga">
+    スコア：<input tyep="text" value="0" id="score">
+</div>
+
+<p>END</p>
+<p>END</p>
+<p>END</p>
+<p>END</p>
+<p>END</p>
+<p>END</p>
+<p>END</p>
+
+
+</body>
+</html>
